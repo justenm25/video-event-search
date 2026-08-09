@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Project data
+data/videos/*
+data/index/*
+!data/videos/.gitkeep
+!data/index/.gitkeep
+
+# Model caches
+*.pt
+*.bin
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/

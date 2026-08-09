@@ -1,0 +1,15 @@
+# Core
+numpy
+opencv-python
+pillow
+tqdm
+
+# CLIP model
+open_clip_torch
+
+# PyTorch — install SEPARATELY with the right CUDA build for your RTX 5060 (Blackwell).
+# See README "Setup" for the exact command:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
+# UI (added later)
+# streamlit
