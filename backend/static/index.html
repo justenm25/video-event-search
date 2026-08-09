@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VESE // Video Event Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="reticle-dot"></span>
+      <h1>VESE<span class="dim"> // VIDEO&nbsp;EVENT&nbsp;SEARCH</span></h1>
+    </div>
+    <div class="sysline" id="sysline">SYSTEM IDLE — AWAITING FEED</div>
+  </header>
+
+  <main class="grid">
+    <!-- LEFT: detected classes -->
+    <aside class="panel left">
+      <div class="panel-title">◢ DETECTED ENTITIES</div>
+      <div id="classList" class="class-list">
+        <div class="empty">No feed loaded.</div>
+      </div>
+      <div class="panel-title">◢ LIVE FRAME</div>
+      <div id="liveCount" class="live-count">—</div>
+    </aside>
+
+    <!-- CENTER: video + overlay -->
+    <section class="stage">
+      <div id="dropzone" class="dropzone">
+        <div class="dz-inner">
+          <div class="dz-brackets"></div>
+          <p class="dz-main">DROP VIDEO FEED</p>
+          <p class="dz-sub">or <label class="filebtn">SELECT FILE<input id="fileInput" type="file" accept="video/*" hidden /></label></p>
+        </div>
+      </div>
+
+      <div id="viewer" class="viewer hidden">
+        <div class="video-wrap">
+          <video id="video" playsinline></video>
+          <canvas id="overlay"></canvas>
+          <div id="processing" class="processing hidden">
+            <div class="scan-bar"></div>
+            <div class="proc-text">ANALYZING FEED</div>
+            <div class="proc-pct" id="procPct">0%</div>
+          </div>
+          <div class="hud-corners"></div>
+        </div>
+        <div class="timeline-wrap">
+          <canvas id="timeline"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: search -->
+    <aside class="panel right">
+      <div class="panel-title">◢ QUERY</div>
+      <form id="searchForm" class="search">
+        <input id="searchInput" type="text" placeholder="e.g. car, person, chair…" autocomplete="off" />
+        <button type="submit">SCAN</button>
+      </form>
+      <div id="searchMeta" class="search-meta"></div>
+      <div id="results" class="results"></div>
+    </aside>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

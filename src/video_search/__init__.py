@@ -1,1 +1,1 @@
-"""Intelligent Video Event Search Engine — core package."""
+"""Intelligent Video Event Search Engine — detection + tracking core."""

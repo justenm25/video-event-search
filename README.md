@@ -5,35 +5,51 @@ CS 5330: Pattern Recognition and Computer Vision
 **Team:** Nikhil Singh Shekhawat, Nimish Vivek Poonekar
 
 ## What this is
-A system that lets you search *inside* videos with natural-language queries
-(e.g. "find moments where people are cooking") and returns the matching
-timestamps / clips — instead of relying on filenames, tags, or manual descriptions.
+Drop in any video and the system scans it, detects objects (people, cars, chairs,
+bicycles… the 80 COCO classes), tracks each one across frames, and tells you
+**when** each object was on screen — e.g. *"car #7 from 00:03 → 00:11."* A
+Jarvis-style HUD draws live tracking reticles over the video and lets you search
+by object type to jump straight to those moments.
 
-## How it works (baseline: CLIP)
-1. **Sample frames** from a video every N seconds (`src/video_search/frames.py`).
-2. **Embed** each frame with a CLIP image encoder into a shared vision-language space (`model.py`).
-3. **Index**: store the frame embeddings + their timestamps (`indexer.py`).
-4. **Search**: embed the text query with the CLIP text encoder and rank frames by
-   cosine similarity (`search.py`). Return the top timestamps.
+## How it works
+```
+video ──▶ YOLO11 detection ──▶ ByteTrack tracking ──▶ interval builder ──▶ CSV + JSON ──▶ HUD
+          (what's in frame)     (persistent per-       (start/end per
+                                 object IDs)            object appearance)
+```
 
-Because CLIP maps images and text into the *same* space, a text query like
-"a person riding a bicycle" can be compared directly against frame embeddings —
-no per-video training required.
+1. **Detect** objects in each processed frame (`src/video_search/detector.py`).
+2. **Track** with ByteTrack so "the same car" keeps one `track_id` across frames.
+3. **Build intervals** (`src/video_search/intervals.py`): as frames are scanned in
+   order, each track keeps a running end time that's pushed forward while it stays
+   visible. When it's been gone longer than a small **gap tolerance**
+   (`INTERVAL_GAP_SEC`), the interval is finalized. Result: **one row per object
+   appearance**, not per frame:
+
+   ```
+   track_id, cls,    start_time,   end_time,     duration_sec, max_conf
+   7,        car,    00:00:03.000, 00:00:11.000, 8.0,          0.94
+   12,       person, 00:00:05.500, 00:00:29.000, 23.5,         0.97
+   ```
+
+4. **Search** the intervals by class and jump to the matching timestamps in the HUD.
 
 ## Project layout
 ```
-config.py                 # paths, model name, sampling rate, top-k
+config.py                    # model, thresholds, frame stride, gap tolerance, server
 src/video_search/
-  frames.py               # frame extraction (OpenCV)
-  model.py                # CLIP load + encode_images / encode_text
-  indexer.py              # build & save an index for a video
-  search.py               # VideoIndex: load index, answer text queries
+  detector.py                # YOLO11 + ByteTrack -> per-frame tracked boxes
+  intervals.py               # fold tracks into start/end intervals + write CSV
+  pipeline.py                # video -> detections.json + intervals.csv + summary.json
+  storage.py                 # artifact paths per video
+backend/
+  app.py                     # FastAPI: upload / process / status / search / serve
+  static/                    # the HUD (index.html, style.css, app.js)
 scripts/
-  index_video.py          # CLI: index a video
-  search_cli.py           # CLI: query an indexed video
+  process_video.py           # CLI: process a video headless (no UI)
 data/
-  videos/                 # put your input videos here
-  index/                  # generated embeddings + metadata
+  videos/                    # source / uploaded videos
+  processed/<id>/            # detections.json, intervals.csv, summary.json
 ```
 
 ## Setup
@@ -53,32 +69,35 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements.txt
 ```
 
-Verify the GPU is visible:
+Verify the GPU is visible (Ultralytics will then run detection on it automatically):
 ```bash
 python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
+The YOLO11 weights download automatically the first time you process a video.
 
 ## Usage
 
+**Web HUD (main experience):**
 ```bash
-# 1. Drop a video into data/videos/, e.g. data/videos/sample.mp4
-
-# 2. Build the index (samples 1 frame/sec by default)
-python scripts/index_video.py data/videos/sample.mp4
-#   ...or finer sampling:
-python scripts/index_video.py data/videos/sample.mp4 --every 0.5
-
-# 3. Search it
-python scripts/search_cli.py sample "a person riding a bicycle"
-python scripts/search_cli.py sample "people cooking" --top-k 3
+python backend/app.py
+# open http://127.0.0.1:8000  -> drop a video -> watch it scan -> search "car"
 ```
 
-Output is a ranked list of timestamps (HH:MM:SS) with similarity scores.
+**Headless (for testing the pipeline):**
+```bash
+python scripts/process_video.py data/videos/sample.mp4
+# -> data/processed/<id>/intervals.csv
+```
+
+Tune detection in `config.py`: `YOLO_MODEL` (accuracy vs speed), `FRAME_STRIDE`
+(process every Nth frame), `CONF_THRESHOLD`, and `INTERVAL_GAP_SEC` (how long an
+object can vanish before its interval is closed).
 
 ## Roadmap
-- [ ] Baseline CLIP frame retrieval  *(current)*
-- [ ] Group adjacent high-scoring frames into **clips/segments** (not just frames)
-- [ ] Search across **multiple videos** at once
-- [ ] Approximate nearest-neighbor index (FAISS) for scale
-- [ ] Simple **Streamlit UI** to type a query and preview matching frames/clips
-- [ ] Evaluation on a labeled dataset (e.g. a subset of ActivityNet / Kinetics)
+- [x] Detection + tracking → per-object time intervals *(current)*
+- [x] Jarvis-style HUD with live tracking reticles + searchable timeline
+- [ ] Object counting overlays (live per-class counts) — partially in the HUD
+- [ ] Open-vocabulary queries (YOLO-World / CLIP) for objects outside COCO-80
+- [ ] Export matched **clips** (not just timestamps) to disk
+- [ ] Multi-video search across a whole library
+- [ ] Evaluation on a labeled dataset (subset of ActivityNet / Kinetics)

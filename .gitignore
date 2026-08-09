@@ -5,13 +5,13 @@ __pycache__/
 venv/
 env/
 
-# Project data
+# Project data (videos + generated artifacts)
 data/videos/*
-data/index/*
+data/processed/*
 !data/videos/.gitkeep
-!data/index/.gitkeep
+!data/processed/.gitkeep
 
-# Model caches
+# Downloaded model weights
 *.pt
 *.bin
 
