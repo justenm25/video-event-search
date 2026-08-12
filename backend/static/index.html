@@ -5,69 +5,202 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VESE // Video Event Search</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <!-- animated background -->
+  <div class="fx">
+    <div class="fx-grid"></div>
+    <div class="fx-ring fx-ring-a"></div>
+    <div class="fx-ring fx-ring-b"></div>
+    <div class="fx-ring fx-ring-c"></div>
+    <div class="fx-vignette"></div>
+  </div>
   <div class="scanlines"></div>
 
+  <!-- boot sequence -->
+  <div id="boot" class="boot">
+    <div class="boot-core">
+      <div class="arc big"><span></span><span></span><span></span><i></i></div>
+    </div>
+    <pre id="bootlog" class="bootlog"></pre>
+    <div class="boot-hint">CLICK TO SKIP</div>
+  </div>
+
+  <!-- top bar -->
   <header class="topbar">
     <div class="brand">
-      <span class="reticle-dot"></span>
-      <h1>VESE<span class="dim"> // VIDEO&nbsp;EVENT&nbsp;SEARCH</span></h1>
+      <div class="arc"><span></span><span></span><span></span><i></i></div>
+      <div class="brand-text">
+        <h1>V.E.S.E</h1>
+        <p>VIDEO&nbsp;EVENT&nbsp;SEARCH&nbsp;ENGINE</p>
+      </div>
     </div>
-    <div class="sysline" id="sysline">SYSTEM IDLE — AWAITING FEED</div>
+    <div class="sysline" id="sysline">
+      <span class="sys-led"></span><span id="sysText">SYSTEM IDLE — AWAITING FEED</span>
+    </div>
+    <div class="chips">
+      <div class="chip"><label>MODEL</label><b id="cModel">—</b></div>
+      <div class="chip"><label>RES</label><b id="cRes">—</b></div>
+      <div class="chip"><label>COMPUTE</label><b id="cGpu">—</b></div>
+      <div class="chip"><label>TIME</label><b id="cClock">--:--:--</b></div>
+    </div>
   </header>
 
   <main class="grid">
-    <!-- LEFT: detected classes -->
+    <!-- LEFT: entity roster -->
     <aside class="panel left">
-      <div class="panel-title">◢ DETECTED ENTITIES</div>
+      <div class="phead"><span class="pcut"></span>ENTITY ROSTER</div>
+
+      <div class="livewrap">
+        <div class="live-ring"><b id="liveCount">0</b><em>IN FRAME</em></div>
+      </div>
+
+      <div class="phead"><span class="pcut"></span>CLASSES DETECTED</div>
       <div id="classList" class="class-list">
         <div class="empty">No feed loaded.</div>
       </div>
-      <div class="panel-title">◢ LIVE FRAME</div>
-      <div id="liveCount" class="live-count">—</div>
+
+      <div class="readouts">
+        <div class="ro"><label>TIMECODE</label><b id="roTime">00:00.0</b></div>
+        <div class="ro"><label>FRAME</label><b id="roFrame">—</b></div>
+        <div class="ro"><label>EVENTS</label><b id="roEvents">0</b></div>
+      </div>
+
+      <div class="phead"><span class="pcut"></span>MOTION ANALYTICS</div>
+      <div class="an-toggles">
+        <button id="tgTraj" class="an-tg">TRAILS</button>
+        <button id="tgSkel" class="an-tg on">SKELETON</button>
+        <button id="tgLine" class="an-tg on">COUNT LINE</button>
+      </div>
+      <div class="readouts an-cross">
+        <div class="ro"><label>CROSS L→R</label><b id="crL">—</b></div>
+        <div class="ro"><label>CROSS R→L</label><b id="crR">—</b></div>
+      </div>
+      <div class="an-heat">
+        <div class="an-cap">ACTIVITY HEATMAP</div>
+        <img id="heatImg" alt="activity heatmap" />
+      </div>
+      <div class="an-heat">
+        <div class="an-cap">DEPTH MAP</div>
+        <img id="depthImg" alt="depth map" />
+      </div>
     </aside>
 
-    <!-- CENTER: video + overlay -->
+    <!-- CENTER: stage -->
     <section class="stage">
       <div id="dropzone" class="dropzone">
+        <input id="fileInput" type="file" accept="video/*" hidden />
         <div class="dz-inner">
-          <div class="dz-brackets"></div>
+          <div class="dz-target"></div>
+          <div class="dz-scan"></div>
           <p class="dz-main">DROP VIDEO FEED</p>
-          <p class="dz-sub">or <label class="filebtn">SELECT FILE<input id="fileInput" type="file" accept="video/*" hidden /></label></p>
+          <p class="dz-sub">release to initialize analysis &nbsp;·&nbsp; <span class="dz-link">or browse</span></p>
         </div>
       </div>
 
       <div id="viewer" class="viewer hidden">
-        <div class="video-wrap">
+        <div id="videoWrap" class="video-wrap">
           <video id="video" playsinline></video>
           <canvas id="overlay"></canvas>
-          <div id="processing" class="processing hidden">
-            <div class="scan-bar"></div>
-            <div class="proc-text">ANALYZING FEED</div>
-            <div class="proc-pct" id="procPct">0%</div>
+          <div class="vp-sweep"></div>
+          <div class="vp-corners"></div>
+
+          <button id="bigPlay" class="big-play hidden" aria-label="play">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+
+          <div id="processing" class="processing">
+            <div class="proc-ring"><b id="procPct">0%</b></div>
+            <div class="proc-text">ANALYZING FEED<span class="dots"></span></div>
+            <div class="proc-sub" id="procSub">initializing neural core</div>
           </div>
-          <div class="hud-corners"></div>
         </div>
+
+        <!-- transport -->
+        <div class="transport">
+          <button class="tbtn" id="btnRestart" title="restart">
+            <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+          </button>
+          <button class="tbtn" id="btnBack" title="step back">
+            <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button class="tbtn play" id="btnPlay" title="play / pause">
+            <svg id="icoPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="icoPause" class="hidden" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+          </button>
+          <button class="tbtn" id="btnFwd" title="step forward">
+            <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+          </button>
+          <div class="ttime"><span id="tCur">00:00</span><i>/</i><span id="tDur">00:00</span></div>
+          <div class="tspacer"></div>
+          <button class="tbtn wide" id="btnSpeed" title="playback speed">1.0×</button>
+          <button class="tbtn" id="btnFull" title="fullscreen">
+            <svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg>
+          </button>
+        </div>
+
         <div class="timeline-wrap">
+          <div class="tl-label">TEMPORAL MAP</div>
           <canvas id="timeline"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- RIGHT: search -->
+    <!-- RIGHT: query -->
     <aside class="panel right">
-      <div class="panel-title">◢ QUERY</div>
+      <div class="phead"><span class="pcut"></span>IDENTITY REGISTRY</div>
+      <button id="btnCreateIdentity" class="id-create">+ CREATE IDENTITY</button>
+      <div id="identityList" class="id-list">
+        <div class="empty">No identities enrolled.</div>
+      </div>
+
+      <div class="phead"><span class="pcut"></span>QUERY INTERFACE</div>
       <form id="searchForm" class="search">
-        <input id="searchInput" type="text" placeholder="e.g. car, person, chair…" autocomplete="off" />
-        <button type="submit">SCAN</button>
+        <input id="searchInput" type="text" placeholder="search an object…" autocomplete="off" />
+        <button type="submit" title="scan">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 5 1.5-1.5zM10 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg>
+        </button>
       </form>
-      <div id="searchMeta" class="search-meta"></div>
+      <div id="chips" class="qchips"></div>
+      <div id="searchMeta" class="search-meta">Load a feed, then query any detected object.</div>
       <div id="results" class="results"></div>
+
+      <div class="phead"><span class="pcut"></span>MODEL EVALUATION</div>
+      <label class="eval-up" id="evalUp">
+        <input id="evalFile" type="file" accept=".json,application/json" hidden />
+        UPLOAD GROUND-TRUTH JSON
+      </label>
+      <div id="evalOut" class="eval-out"></div>
     </aside>
   </main>
+
+  <!-- identity enrollment modal -->
+  <div id="idModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span>ENROLL IDENTITY</span>
+        <button id="idClose" class="modal-x" title="close" aria-label="close">✕</button>
+      </div>
+      <label class="id-field">
+        <span>NAME</span>
+        <input id="idName" type="text" placeholder="e.g. Nimish" autocomplete="off" />
+      </label>
+      <div id="idDrop" class="id-drop">
+        <input id="idFiles" type="file" accept="image/*" multiple hidden />
+        <div class="id-drop-main">DROP FACE PHOTOS</div>
+        <div class="id-drop-sub">or click to browse · <b id="idCount">0</b> selected</div>
+      </div>
+      <p class="id-hint">Add <b>10–20 clear photos</b> of the face — vary the angle,
+        lighting &amp; expression (minimum 5). Enroll <b>before</b> analyzing a video;
+        videos already processed keep their old labels.</p>
+      <div id="idPreview" class="id-preview"></div>
+      <div id="idMsg" class="id-msg"></div>
+      <button id="idEnroll" class="id-enroll">ENROLL</button>
+    </div>
+  </div>
 
   <script src="/app.js"></script>
 </body>

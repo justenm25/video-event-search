@@ -31,5 +31,13 @@ def summary_path(video_id: str) -> Path:
     return processed_dir(video_id) / "summary.json"
 
 
+def heatmap_path(video_id: str) -> Path:
+    return processed_dir(video_id) / "heatmap.png"
+
+
+def depth_path(video_id: str) -> Path:
+    return processed_dir(video_id) / "depth.png"
+
+
 def is_processed(video_id: str) -> bool:
     return summary_path(video_id).exists() and detections_path(video_id).exists()

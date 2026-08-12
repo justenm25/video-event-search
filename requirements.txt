@@ -13,3 +13,26 @@ python-multipart     # multipart file uploads
 # PyTorch — install SEPARATELY with the right CUDA build for your RTX 5060 (Blackwell).
 # See README. Do NOT rely on the default CPU wheel:
 #   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
+# Face recognition for custom identities (MTCNN detector + VGGFace2 embeddings).
+# Install with --no-deps so it does NOT downgrade the cu128 torch above; its real
+# runtime deps (torch, torchvision, numpy, pillow, requests, tqdm) are already met:
+#   pip install facenet-pytorch --no-deps
+#   pip install tqdm            # only extra runtime dep not already pulled in
+tqdm                 # progress bars used by facenet-pytorch's weight downloader
+
+# Monocular depth (optional; config.DEPTH_ENABLED). MiDaS is pulled at runtime via
+# torch.hub; timm supplies its backbone. Safe install — does not touch torch.
+timm
+
+# Face attributes (optional; config.ATTRIBUTES_ENABLED) — age/gender via InsightFace.
+# CPU onnxruntime is fine. Installs clean prebuilt wheels; does not touch torch.
+onnxruntime
+insightface
+
+# Quantitative evaluation (optional; /api/evaluate) — MOTA / IDF1 tracking metrics.
+# NOTE: motmetrics 1.4 uses the removed np.asfarray; evaluation.py shims it.
+motmetrics
+
+# Appearance Re-ID (config.REID_ENABLED) uses a torchvision ResNet-50 encoder —
+# no extra dependency (torchvision already required by ultralytics/torch).

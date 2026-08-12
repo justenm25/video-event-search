@@ -24,17 +24,19 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 import config  # noqa: E402
-from video_search import pipeline, storage  # noqa: E402
+from video_search import pipeline, storage, identities  # noqa: E402
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File  # noqa: E402
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from typing import List  # noqa: E402
 import json  # noqa: E402
 
 app = FastAPI(title="Video Event Search Engine")
 
 config.VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 config.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+config.IDENTITIES_DIR.mkdir(parents=True, exist_ok=True)
 
 # In-memory job registry: video_id -> progress state.
 JOBS: Dict[str, Dict] = {}
@@ -121,6 +123,59 @@ def detections(video_id: str):
     return FileResponse(path, media_type="application/json")
 
 
+@app.get("/api/heatmap/{video_id}")
+def heatmap(video_id: str):
+    path = storage.heatmap_path(video_id)
+    if not path.exists():
+        raise HTTPException(404, "no heatmap")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/api/depth/{video_id}")
+def depth(video_id: str):
+    path = storage.depth_path(video_id)
+    if not path.exists():
+        raise HTTPException(404, "no depth map")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.post("/api/evaluate/{video_id}")
+async def evaluate_video(video_id: str, file: UploadFile = File(...)):
+    """Score stored predictions against an uploaded ground-truth JSON file."""
+    det_path = storage.detections_path(video_id)
+    if not det_path.exists():
+        raise HTTPException(404, "not processed yet")
+    try:
+        gt = json.loads(await file.read())
+    except Exception:
+        raise HTTPException(400, "ground-truth file must be valid JSON")
+    from video_search import evaluation
+    pred = json.loads(det_path.read_text(encoding="utf-8"))
+    try:
+        return evaluation.evaluate(pred, gt)
+    except Exception as exc:
+        raise HTTPException(400, f"evaluation failed: {exc}")
+
+
+@app.get("/api/info")
+def info():
+    """System/model info for the HUD status readouts."""
+    device = "CPU"
+    try:
+        import torch
+        if torch.cuda.is_available():
+            device = torch.cuda.get_device_name(0)
+    except Exception:
+        pass
+    return {
+        "model": config.YOLO_MODEL,
+        "imgsz": config.IMG_SIZE,
+        "conf": config.CONF_THRESHOLD,
+        "stride": config.FRAME_STRIDE,
+        "device": device,
+    }
+
+
 @app.get("/api/videos")
 def videos():
     out = []
@@ -157,6 +212,39 @@ def video(video_id: str, request: Request):
         "Content-Length": str(length),
     }
     return Response(chunk, status_code=206, headers=headers, media_type="video/mp4")
+
+
+# --- Custom identities (relabel "person" as an enrolled name) ---
+
+@app.post("/api/identities")
+async def create_identity(name: str = Form(...), files: List[UploadFile] = File(...)):
+    """Enroll a person: a name + a batch of photos of their face."""
+    images = [await f.read() for f in files]
+    try:
+        meta = identities.create_identity(name, images)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return meta
+
+
+@app.get("/api/identities")
+def list_identities():
+    return {"identities": identities.list_identities()}
+
+
+@app.delete("/api/identities/{identity_id}")
+def delete_identity(identity_id: str):
+    if not identities.delete_identity(identity_id):
+        raise HTTPException(404, "identity not found")
+    return {"deleted": True}
+
+
+@app.get("/api/identities/{identity_id}/thumb")
+def identity_thumb(identity_id: str):
+    path = identities.thumb_path(identity_id)
+    if path is None:
+        raise HTTPException(404, "no thumbnail")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 # Static front-end (index.html at /). Mounted last so /api/* wins.

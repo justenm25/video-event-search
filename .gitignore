@@ -8,8 +8,10 @@ env/
 # Project data (videos + generated artifacts)
 data/videos/*
 data/processed/*
+data/identities/*
 !data/videos/.gitkeep
 !data/processed/.gitkeep
+!data/identities/.gitkeep
 
 # Downloaded model weights
 *.pt
